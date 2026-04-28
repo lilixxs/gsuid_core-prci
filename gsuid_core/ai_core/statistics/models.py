@@ -245,7 +245,7 @@ class AITokenUsageByModel(BaseIDModel, table=True):
         """获取指定日期的统计数据"""
         stmt = select(cls).where(and_(cls.date == date))
         result = await session.execute(stmt)
-        return list(result.scalars().all())
+        return list(result.scalars().all()) or []
 
     @classmethod
     @with_session
@@ -345,7 +345,7 @@ class AIGroupUserActivityStats(BaseIDModel, table=True):
         """获取指定日期的所有活跃统计数据"""
         stmt = select(cls).where(and_(cls.date == date))
         result = await session.execute(stmt)
-        return list(result.scalars().all())
+        return list(result.scalars().all()) or []
 
     @classmethod
     @with_session

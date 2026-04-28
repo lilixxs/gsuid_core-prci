@@ -226,6 +226,8 @@ class GsCoreAIAgent:
         """
         from gsuid_core.ai_core.statistics import statistics_manager
 
+        _tool_call_list: list[str] = []  # 用于记录本次运行中被调用的工具列表，供后续统计使用
+
         # 使用自定义迭代次数限制（如果有），否则使用配置默认值
         if self.max_iterations is not None:
             limits = UsageLimits(request_limit=self.max_iterations)
@@ -320,12 +322,6 @@ class GsCoreAIAgent:
                                     f"[✅ 工具执行完毕]: 工具名称='{part.tool_name}', 结果给到Agent={tool_result_str}"
                                 )
 
-                                # 你也可以在这里发送安抚话语
-                                if context.bot and context.ev:
-                                    done_msg = f"✅ 「{part.tool_name}」操作执行完毕！"
-                                    if bot:
-                                        await bot.send(done_msg)
-
                         logger.debug("🧠  ▶ [发起请求]: 正在等待大模型思考...")
 
                     # 2. 获取到大模型响应，准备调用工具或者输出文本
@@ -335,15 +331,10 @@ class GsCoreAIAgent:
 
                         # 遍历大模型返回的具体片段 (Parts)
                         for part in node.model_response.parts:
-                            # ✨ 拦截到模型即将调用工具！
+                            # 拦截到模型即将调用工具
                             if isinstance(part, ToolCallPart):
                                 logger.debug(f"[🔧 大模型请求调用工具]: 工具名称='{part.tool_name}', 参数={part.args}")
-
-                                # 利用传入的 Bot 实时发送安抚话语
-                                if context.bot and context.ev:
-                                    waiting_msg = f"⏳ 正在为你执行「{part.tool_name}」操作..."
-                                    if bot:
-                                        await bot.send(waiting_msg)
+                                _tool_call_list.append(part.tool_name)
 
                             # 大模型直接输出文本
                             elif isinstance(part, TextPart):
@@ -399,8 +390,12 @@ class GsCoreAIAgent:
                 # 当 return_model 指定时，直接返回 Pydantic 模型实例
                 if output_type is not None:
                     return result.output
+
                 # 始终返回字符串类型
                 result_msg = str(result.output).strip()
+                if _tool_call_list:
+                    result_msg += f"\n\n（🔧 本次执行工具调用列表: {'、'.join(_tool_call_list)}）"
+
                 if return_mode in ["by_bot"] and bot and ev:
                     return ""
                 return result_msg

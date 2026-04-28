@@ -274,31 +274,35 @@ class StatisticsManager:
 
             # 2. 加载 AITokenUsageByModel
             all_token_use = await AITokenUsageByModel.get_daily_data(date=today)
-            for stats in all_token_use:
-                self._bot_state.token_by_model[stats.model_name.lower()].add(
-                    stats.input_tokens or 0, stats.output_tokens or 0
-                )
+            if all_token_use:
+                for stats in all_token_use:
+                    self._bot_state.token_by_model[stats.model_name.lower()].add(
+                        stats.input_tokens or 0, stats.output_tokens or 0
+                    )
 
             all_token_use_type = await AITokenUsageByType.get_daily_data(date=today)
-            for stats in all_token_use_type:
-                self._bot_state.token_by_type[stats.chat_type.lower()].add(
-                    stats.input_tokens or 0, stats.output_tokens or 0
-                )
+            if all_token_use_type:
+                for stats in all_token_use_type:
+                    self._bot_state.token_by_type[stats.chat_type.lower()].add(
+                        stats.input_tokens or 0, stats.output_tokens or 0
+                    )
 
             # 3. 加载 AIHeartbeatMetrics
             all_heartbeat = await AIHeartbeatMetrics.get_daily_data(date=today)
-            for stats in all_heartbeat:
-                self._bot_state.heartbeats[stats.group_id].update(
-                    should_speak_true=stats.should_speak_count or 0,
-                    should_speak_false=stats.should_not_speak_count or 0,
-                )
+            if all_heartbeat:
+                for stats in all_heartbeat:
+                    self._bot_state.heartbeats[stats.group_id].update(
+                        should_speak_true=stats.should_speak_count or 0,
+                        should_speak_false=stats.should_not_speak_count or 0,
+                    )
 
             # 4. 加载 AIGroupUserActivityStats
             all_activity = await AIGroupUserActivityStats.get_daily_data(date=today)
-            for stats in all_activity:
-                self._bot_state.activities[f"{stats.group_id}:{stats.user_id}"].update(
-                    ai_interaction=stats.ai_interaction_count or 0, message=stats.message_count or 0
-                )
+            if all_activity:
+                for stats in all_activity:
+                    self._bot_state.activities[f"{stats.group_id}:{stats.user_id}"].update(
+                        ai_interaction=stats.ai_interaction_count or 0, message=stats.message_count or 0
+                    )
 
             # 5. 加载 RAG 统计数据
             rag_data = await AIRAGMissStatistics.get_daily_data(today)
