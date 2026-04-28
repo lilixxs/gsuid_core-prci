@@ -7,8 +7,12 @@ AI日期工具模块
 from typing import Optional
 from datetime import datetime
 
+from pytz import timezone
+
 from gsuid_core.logger import logger
 from gsuid_core.ai_core.register import ai_tools
+
+TZ_SHANGHAI = timezone("Asia/Shanghai")
 
 
 async def _get_current_date_impl(format: Optional[str] = None) -> str:
@@ -21,7 +25,7 @@ async def _get_current_date_impl(format: Optional[str] = None) -> str:
     Returns:
         当前日期时间字符串，包含日期、时间、星期信息
     """
-    now = datetime.now()
+    now = datetime.now(TZ_SHANGHAI)
 
     # 默认格式
     date_format = format or "%Y年%m月%d日 %H:%M:%S"

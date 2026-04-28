@@ -87,7 +87,7 @@ AI_CONFIG: Dict[str, GSC] = {
         "网络搜索服务提供方",
         "指定网络搜索服务提供方",
         "Tavily",
-        options=["Tavily"],
+        options=["Tavily", "Exa", "MiniMax"],
     ),
     "multi_agent_lenth": GsIntConfig(
         "最多允许AI思考轮数",
@@ -143,6 +143,48 @@ TAVILY_CONFIG: Dict[str, GSC] = {
         "指定搜索深度，basic 速度更快但结果较少，advanced 更详细但速度较慢",
         "basic",
         options=["basic", "advanced"],
+    ),
+}
+
+EXA_CONFIG: Dict[str, GSC] = {
+    "api_key": GsListStrConfig(
+        "Exa API密钥",
+        "指定 Exa API 的密钥，用于启用 web 搜索功能，请前往 https://exa.ai 获取 API Key",
+        [],
+        options=[],
+    ),
+    "max_results": GsIntConfig(
+        "最大搜索结果数",
+        "指定每次搜索的最大返回结果数量",
+        10,
+        options=[5, 10, 15, 20],
+    ),
+    "search_type": GsStrConfig(
+        "搜索类型",
+        "指定搜索类型，neural 为语义搜索（更智能），keyword 为关键词搜索（更精确）",
+        "neural",
+        options=["neural", "keyword"],
+    ),
+}
+
+MINIMAX_CONFIG: Dict[str, GSC] = {
+    "api_key": GsListStrConfig(
+        "MiniMax API密钥",
+        "指定 MiniMax API 的密钥，用于启用 web 搜索功能，请前往 https://platform.minimaxi.com 获取 API Key",
+        [],
+        options=[],
+    ),
+    "api_host": GsStrConfig(
+        "MiniMax API 主机地址",
+        "指定 MiniMax API 的主机地址",
+        "https://api.minimaxi.com",
+        options=["https://api.minimaxi.com"],
+    ),
+    "resource_mode": GsStrConfig(
+        "资源提供方式",
+        "指定资源提供方式，url 为返回 URL 链接，local 为返回本地文件路径",
+        "url",
+        options=["url", "local"],
     ),
 }
 
@@ -225,8 +267,20 @@ tavily_config = StringConfig(
     TAVILY_CONFIG,
 )
 
+exa_config = StringConfig(
+    "GsCore AI Exa搜索配置",
+    get_res_path("ai_core") / "exa_config.json",
+    EXA_CONFIG,
+)
+
 persona_config = StringConfig(
     "GsCore AI 人设配置",
     get_res_path("ai_core") / "persona_config.json",
     PERSONA_CONFIG,
+)
+
+minimax_config = StringConfig(
+    "GsCore AI MiniMax搜索配置",
+    get_res_path("ai_core") / "minimax_config.json",
+    MINIMAX_CONFIG,
 )

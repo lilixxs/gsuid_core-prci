@@ -476,7 +476,7 @@ async def draw_plugins_status():
 
             plugin = plugins_status[i]
             icon = plugin["icon"]
-            icon = icon.resize((128, 128))
+            icon = icon.resize((128, 128)).convert("RGBA")
             status = plugin["status"]
 
             plugin_bar.paste(icon, (109, 30), icon)

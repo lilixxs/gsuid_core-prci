@@ -183,6 +183,37 @@ async def _try_download_from_resource_lib() -> bool:
     return True
 
 
+def _get_dir_size(path: Path) -> int:
+    """递归计算目录总大小（字节）"""
+    total = 0
+    try:
+        for entry in path.rglob("*"):
+            if entry.is_file():
+                total += entry.stat().st_size
+    except OSError:
+        pass
+    return total
+
+
+def _is_models_cache_valid() -> bool:
+    """检查模型缓存是否已存在且有效
+
+    通过检查 models--Qdrant--bge-small-zh-v1.5 文件夹是否存在且大小超过 88MB 来判断。
+    """
+    embedding_model_dir = MODELS_CACHE / "models--Qdrant--bge-small-zh-v1.5"
+    if not embedding_model_dir.is_dir():
+        return False
+
+    dir_size = _get_dir_size(embedding_model_dir)
+    min_size = 88 * 1024 * 1024  # 88MB
+    if dir_size < min_size:
+        logger.info(f"🧠 [RAG] Embedding模型缓存目录存在但不完整: {_format_size(dir_size)} < {_format_size(min_size)}")
+        return False
+
+    logger.info(f"🧠 [RAG] 模型缓存已存在，大小: {_format_size(dir_size)}，跳过下载")
+    return True
+
+
 async def pre_download_models():
     """提前下载所有模型到缓存目录
 
@@ -194,6 +225,10 @@ async def pre_download_models():
     3. Reranker模型: BAAI/bge-reranker-base -> RERANK_MODELS_CACHE
     """
     if not is_enable_ai():
+        return
+
+    # 检查模型缓存是否已存在
+    if _is_models_cache_valid():
         return
 
     # 优先尝试从资源库下载zip包

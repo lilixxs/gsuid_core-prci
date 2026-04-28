@@ -8,6 +8,7 @@ add_scheduled_task 工具模块
 import uuid
 from datetime import datetime
 
+from pytz import timezone
 from pydantic_ai import RunContext
 
 from gsuid_core.aps import scheduler
@@ -17,6 +18,8 @@ from gsuid_core.ai_core.register import ai_tools
 
 from .models import AIScheduledTask
 from .executor import execute_scheduled_task
+
+TZ_SHANGHAI = timezone("Asia/Shanghai")
 
 
 @ai_tools(category="buildin")
@@ -60,12 +63,14 @@ async def add_scheduled_task(
     # 解析执行时间
     try:
         trigger_time = datetime.strptime(run_time, "%Y-%m-%d %H:%M:%S")
+        trigger_time = TZ_SHANGHAI.localize(trigger_time)
     except ValueError:
         return f"⚠️ 时间格式错误，请使用 YYYY-MM-DD HH:MM:SS 格式，输入的时间是: {run_time}"
 
     # 检查时间是否在未来
-    if trigger_time <= datetime.now():
-        return f"⚠️ 预约时间必须在未来，当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    now_shanghai = datetime.now(TZ_SHANGHAI)
+    if trigger_time <= now_shanghai:
+        return f"⚠️ 预约时间必须在未来，当前时间: {now_shanghai.strftime('%Y-%m-%d %H:%M:%S')}"
 
     # 生成唯一任务ID
     task_id = f"scheduled_task_{uuid.uuid4().hex[:12]}"

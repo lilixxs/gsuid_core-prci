@@ -13,11 +13,15 @@ execute_scheduled_task 定时执行器
 from typing import Optional
 from datetime import datetime, timedelta
 
+from pytz import timezone
+
 from gsuid_core.bot import Bot
 from gsuid_core.logger import logger
 from gsuid_core.models import Event
 
 from .models import AIScheduledTask
+
+TZ_SHANGHAI = timezone("Asia/Shanghai")
 
 # 安全限制：最大循环执行次数
 MAX_EXECUTION_LIMIT = 10
@@ -129,7 +133,7 @@ async def execute_scheduled_task(task_id: str) -> None:
                     select_data={"task_id": task_id},
                     update_data={
                         "status": "executed",
-                        "executed_at": datetime.now(),
+                        "executed_at": datetime.now(TZ_SHANGHAI),
                         "current_executions": current_exec,
                         "result": result,
                     },
@@ -140,7 +144,7 @@ async def execute_scheduled_task(task_id: str) -> None:
             else:
                 # 更新下次执行时间
                 interval_sec = task.interval_seconds or 0
-                next_run = datetime.now() + timedelta(seconds=interval_sec)
+                next_run = datetime.now(TZ_SHANGHAI) + timedelta(seconds=interval_sec)
 
                 # 如果任务处于 paused 状态，不要重新注册
                 if task.status == "pending":
@@ -152,7 +156,7 @@ async def execute_scheduled_task(task_id: str) -> None:
                         func=execute_scheduled_task,
                         trigger="interval",
                         seconds=interval_sec,
-                        start_date=datetime.now(),
+                        start_date=datetime.now(TZ_SHANGHAI),
                         args=[task_id],
                         id=task_id,
                         replace_existing=True,
@@ -176,7 +180,7 @@ async def execute_scheduled_task(task_id: str) -> None:
                 select_data={"task_id": task_id},
                 update_data={
                     "status": "executed",
-                    "executed_at": datetime.now(),
+                    "executed_at": datetime.now(TZ_SHANGHAI),
                     "result": result,
                 },
             )
@@ -197,7 +201,7 @@ async def execute_scheduled_task(task_id: str) -> None:
             select_data={"task_id": task_id},
             update_data={
                 "status": "failed",
-                "executed_at": datetime.now(),
+                "executed_at": datetime.now(TZ_SHANGHAI),
                 "error_message": str(e),
             },
         )
@@ -224,7 +228,7 @@ async def reload_pending_tasks() -> int:
         # 根据任务类型处理
         if task.task_type == "interval":
             # 循环任务
-            if task.next_run_time and task.next_run_time > datetime.now():
+            if task.next_run_time and task.next_run_time > datetime.now(TZ_SHANGHAI):
                 # 重新注册到调度器
                 interval_sec = task.interval_seconds or 0
                 scheduler.add_job(
@@ -245,7 +249,7 @@ async def reload_pending_tasks() -> int:
 
         else:
             # 一次性任务
-            if task.trigger_time and task.trigger_time <= datetime.now():
+            if task.trigger_time and task.trigger_time <= datetime.now(TZ_SHANGHAI):
                 # 立即执行
                 logger.info(f"⏰ [ScheduledTask] 发现已到期的一次性任务，立即执行: {task.task_id}")
                 await execute_scheduled_task(task.task_id)

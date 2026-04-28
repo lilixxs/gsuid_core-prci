@@ -1,18 +1,19 @@
 """
 Web搜索工具模块
 
-提供基于 Tavily API 的 web 搜索功能，供 AI Agent 调用。
+提供统一的 web 搜索功能，供 AI Agent 调用。
+根据用户配置自动选择搜索引擎（Tavily / Exa）。
 """
 
 from pydantic_ai import RunContext
 
 from gsuid_core.ai_core.models import ToolContext
 from gsuid_core.ai_core.register import ai_tools
-from gsuid_core.ai_core.web_search import tavily_search
+from gsuid_core.ai_core.web_search import web_search
 
 
 @ai_tools(category="buildin")
-async def web_search(
+async def web_search_tool(
     ctx: RunContext[ToolContext],
     query: str,
     limit: int = 10,
@@ -20,7 +21,7 @@ async def web_search(
     """
     Web搜索工具
 
-    使用 Tavily API 进行 web 搜索，返回搜索结果列表。
+    根据配置使用 Tavily 或 Exa API 进行 web 搜索，返回搜索结果列表。
 
     Args:
         ctx: 工具执行上下文
@@ -31,10 +32,10 @@ async def web_search(
         搜索结果列表字符串
 
     Example:
-        >>> results = await web_search(ctx, "原神 4.0 更新内容")
+        >>> results = await web_search_tool(ctx, "原神 4.0 更新内容")
         >>> print(results)
     """
-    results = await tavily_search(
+    results = await web_search(
         query=query,
         max_results=limit,
     )

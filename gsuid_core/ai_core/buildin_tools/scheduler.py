@@ -28,6 +28,7 @@ import uuid
 from typing import Optional
 from datetime import datetime, timedelta
 
+from pytz import timezone
 from pydantic_ai import RunContext
 
 from gsuid_core.aps import scheduler
@@ -35,6 +36,8 @@ from gsuid_core.logger import logger
 from gsuid_core.ai_core.models import ToolContext
 from gsuid_core.ai_core.register import ai_tools
 from gsuid_core.ai_core.scheduled_task.models import AIScheduledTask
+
+TZ_SHANGHAI = timezone("Asia/Shanghai")
 
 # 安全限制
 MAX_PENDING_TASKS_PER_USER = 20
@@ -124,14 +127,16 @@ async def add_once_task(
     if not run_time:
         return "⚠️ 添加任务失败：缺少 run_time"
 
-    # 解析时间
+    # 解析时间（统一使用 Asia/Shanghai 时区）
     try:
         trigger_time = datetime.strptime(run_time, "%Y-%m-%d %H:%M:%S")
+        trigger_time = TZ_SHANGHAI.localize(trigger_time)
     except ValueError:
         return "⚠️ 时间格式错误，请使用 YYYY-MM-DD HH:MM:SS 格式"
 
-    if trigger_time <= datetime.now():
-        return f"⚠️ 预约时间必须在未来，当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    now_shanghai = datetime.now(TZ_SHANGHAI)
+    if trigger_time <= now_shanghai:
+        return f"⚠️ 预约时间必须在未来，当前时间: {now_shanghai.strftime('%Y-%m-%d %H:%M:%S')}"
 
     # 安全检查
     existing_tasks = await AIScheduledTask.select_rows(user_id=ev.user_id)
@@ -275,7 +280,7 @@ async def add_interval_task(
     task_id = f"scheduled_task_{uuid.uuid4().hex[:12]}"
 
     try:
-        start_time = datetime.now()
+        start_time = datetime.now(TZ_SHANGHAI)
         next_run_time = start_time + timedelta(seconds=interval_seconds)
 
         await AIScheduledTask.full_insert_data(
@@ -765,13 +770,13 @@ async def resume_scheduled_task(
             func=execute_scheduled_task,
             trigger="interval",
             seconds=task.interval_seconds,
-            start_date=datetime.now(),
+            start_date=datetime.now(TZ_SHANGHAI),
             args=[task_id],
             id=task_id,
             replace_existing=True,
         )
 
-        next_run = datetime.now() + timedelta(seconds=task.interval_seconds or 0)
+        next_run = datetime.now(TZ_SHANGHAI) + timedelta(seconds=task.interval_seconds or 0)
 
         await AIScheduledTask.update_data_by_data(
             select_data={"task_id": task_id},

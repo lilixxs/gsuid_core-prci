@@ -15,6 +15,7 @@ Buildin Tools 模块
 直接调用，不需要特别理由不会拒绝。
 - search_knowledge: 检索知识库内容
 - web_search: Web搜索工具
+- web_fetch: 网页抓取工具（将网页转换为Markdown）
 - query_user_memory: 查询用户记忆
 
 ### 通常工具 (category="common")
@@ -69,6 +70,9 @@ from gsuid_core.ai_core.buildin_tools.scheduler import (
 # 自我信息工具 - 获取自身Persona信息
 from gsuid_core.ai_core.buildin_tools.self_info import get_self_persona_info
 
+# 网页抓取工具 - 抓取网页内容并转换为Markdown
+from gsuid_core.ai_core.buildin_tools.web_fetch import web_fetch_tool
+
 # RAG检索工具 - 知识库查询，支持类别/插件筛选
 from gsuid_core.ai_core.buildin_tools.rag_search import search_knowledge
 
@@ -116,6 +120,8 @@ __all__ = [
     "search_knowledge",
     # Web搜索工具
     "web_search",
+    # 网页抓取工具
+    "web_fetch_tool",
     # 消息发送工具
     "send_message_by_ai",
     # 命令执行工具
