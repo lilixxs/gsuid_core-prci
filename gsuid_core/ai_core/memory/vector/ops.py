@@ -5,7 +5,6 @@
 """
 
 import asyncio
-import threading
 from typing import TYPE_CHECKING, Optional
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,6 +21,7 @@ from qdrant_client.models import (
 )
 
 from gsuid_core.logger import logger
+from gsuid_core.ai_core.rag.base import _get_sparse_model
 
 from .collections import (
     MEMORY_EDGES_COLLECTION,
@@ -52,29 +52,9 @@ _EMBED_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mem_embe
 # 反而比单线程更慢。因此批量调用使用 max_workers=1，确保 ONNX 独占 CPU 资源。
 _EMBED_BATCH_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mem_embed_batch")
 
-# 全局 Sparse Embedding 模型（懒加载，线程安全）
-_sparse_model = None
-_sparse_model_lock = threading.Lock()
-
 # Sparse Embedding 降级计数器，用于监控降级频率
 _sparse_degrade_count = 0
 _sparse_degrade_last_log = 0.0
-
-
-def _get_sparse_model():
-    """隐患三修复：添加线程锁防止并发初始化模型"""
-    global _sparse_model
-    if _sparse_model is None:
-        with _sparse_model_lock:
-            # 双重检查锁定
-            if _sparse_model is None:
-                try:
-                    from fastembed import SparseTextEmbedding
-
-                    _sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
-                except Exception as e:
-                    logger.warning(f"🧠 [Memory] SparseTextEmbedding 初始化失败: {e}")
-    return _sparse_model
 
 
 def _embed(text: str) -> list[float]:

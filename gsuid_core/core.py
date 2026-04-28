@@ -1,3 +1,4 @@
+import os
 import sys
 import signal
 import asyncio
@@ -63,7 +64,17 @@ async def main():
     import time
 
     start_time = time.time()
+
+    from gsuid_core.logger import logger
+    from gsuid_core.ai_core.configs.ai_config import ai_config
     from gsuid_core.utils.database.base_models import init_database
+
+    hf_endpoint: str = ai_config.get_config("hf_endpoint").data
+
+    os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "60"
+    os.environ["HF_ENDPOINT"] = hf_endpoint
+
+    logger.info(f"🧠 [GsCore] 切换HF地址，地址: {hf_endpoint}")
 
     await init_database()
 
@@ -74,7 +85,6 @@ async def main():
     import gsuid_core.ai_core.buildin_tools  # noqa: F401
     from gsuid_core.bot import _Bot
     from gsuid_core.config import core_config
-    from gsuid_core.logger import logger
     from gsuid_core.models import MessageReceive
     from gsuid_core.handler import handle_event
     from gsuid_core.security_manager import sec_manager

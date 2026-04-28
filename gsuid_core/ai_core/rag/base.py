@@ -1,14 +1,15 @@
 """RAG模块基础功能 - 共享常量和工具函数"""
 
-import os
 import json
 import uuid
 import hashlib
-from typing import TYPE_CHECKING, Final, Union
+import threading
+from typing import Final, Union
 
-from fastembed import TextEmbedding
+from fastembed import TextEmbedding, SparseTextEmbedding
 from qdrant_client import AsyncQdrantClient
 
+from gsuid_core.logger import logger
 from gsuid_core.data_store import AI_CORE_PATH
 from gsuid_core.ai_core.configs.ai_config import ai_config, rerank_model_config, local_embedding_config
 
@@ -39,13 +40,33 @@ def is_enable_rerank() -> bool:
     return ai_config.get_config("enable_rerank").data
 
 
-# ============== 全局变量 ==============
-if TYPE_CHECKING:
-    from fastembed import TextEmbedding
-    from qdrant_client import AsyncQdrantClient
-
 embedding_model: "Union[TextEmbedding, None]" = None
 client: "Union[AsyncQdrantClient, None]" = None
+# 全局 Sparse Embedding 模型（懒加载，线程安全）
+_sparse_model = None
+_sparse_model_lock = threading.Lock()
+
+
+def _get_sparse_model():
+    """隐患三修复：添加线程锁防止并发初始化模型"""
+    global _sparse_model
+
+    if not is_enable_ai():
+        return
+
+    if _sparse_model is None:
+        with _sparse_model_lock:
+            # 双重检查锁定
+            if _sparse_model is None:
+                try:
+                    _sparse_model = SparseTextEmbedding(
+                        model_name="Qdrant/bm25",
+                        cache_dir=str(MODELS_CACHE),
+                        threads=2,
+                    )
+                except Exception as e:
+                    logger.warning(f"🧠 [Memory] SparseTextEmbedding 初始化失败: {e}")
+    return _sparse_model
 
 
 def init_embedding_model():
@@ -58,11 +79,6 @@ def init_embedding_model():
     # 防止重复初始化，导致Qdrant文件锁冲突
     if client is not None:
         return
-
-    hf_endpoint: str = ai_config.get_config("hf_endpoint").data
-
-    os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "60"
-    os.environ["HF_ENDPOINT"] = hf_endpoint
 
     embedding_model = TextEmbedding(
         model_name=EMBEDDING_MODEL_NAME,
