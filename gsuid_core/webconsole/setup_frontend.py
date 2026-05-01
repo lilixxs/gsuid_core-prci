@@ -159,7 +159,7 @@ async def _setup_frontend():
             dist_path = DIST_PATH
         else:
             # 版本相同，优先使用 DIST_EX_PATH
-            dist_path = DIST_EX_PATH
+            dist_path = DIST_PATH
     elif dist_ex_exists:
         # 只有 DIST_EX_PATH 存在
         dist_path = DIST_EX_PATH
