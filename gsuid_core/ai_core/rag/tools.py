@@ -2,7 +2,12 @@
 
 from typing import TYPE_CHECKING, Any, Set, Dict, List, Union
 
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    PointStruct,
+    VectorParams,
+    VectorParamsDiff,
+)
 
 from gsuid_core.logger import logger
 from gsuid_core.ai_core.models import ToolBase, ToolContext
@@ -34,9 +39,24 @@ async def init_tools_collection():
         logger.info(f"🧠 [Tools] 初始化新集合: {TOOLS_COLLECTION_NAME}")
         await client.create_collection(
             collection_name=TOOLS_COLLECTION_NAME,
-            vectors_config=VectorParams(size=DIMENSION, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=DIMENSION, distance=Distance.COSINE, on_disk=True),
             on_disk_payload=True,
         )
+    else:
+        # 已存在的 collection：尝试迁移向量到磁盘存储
+        try:
+            col_info = await client.get_collection(collection_name=TOOLS_COLLECTION_NAME)
+            vectors_config = col_info.config.params.vectors
+            # 单向量模式：检查 on_disk 状态
+            if isinstance(vectors_config, VectorParams) and not vectors_config.on_disk:
+                logger.info(f"🧠 [Tools] 迁移集合 {TOOLS_COLLECTION_NAME} 向量到磁盘存储...")
+                await client.update_collection(
+                    collection_name=TOOLS_COLLECTION_NAME,
+                    vectors_config={"": VectorParamsDiff(on_disk=True)},
+                )
+                logger.info(f"🧠 [Tools] 集合 {TOOLS_COLLECTION_NAME} 迁移完成")
+        except Exception as e:
+            logger.warning(f"🧠 [Tools] 检查/迁移集合 on_disk 配置失败: {e}")
 
 
 async def sync_tools(tools_map: Dict[str, ToolBase]) -> None:

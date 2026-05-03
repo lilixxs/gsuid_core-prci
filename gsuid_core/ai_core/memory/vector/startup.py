@@ -38,11 +38,12 @@ async def ensure_memory_collections():
         Distance,
         Modifier,
         VectorParams,
+        VectorParamsDiff,
         PayloadSchemaType,
         SparseVectorParams,
     )
 
-    vector_config = VectorParams(size=DIMENSION, distance=Distance.COSINE)
+    vector_config = VectorParams(size=DIMENSION, distance=Distance.COSINE, on_disk=True)
     sparse_config = SparseVectorParams(modifier=Modifier.IDF)
 
     for name in (
@@ -92,6 +93,19 @@ async def ensure_memory_collections():
                     )
                     logger.info(f"🧠 [Memory] 重建 Qdrant Collection: {name}")
                 else:
-                    logger.debug(f"🧠 [Memory] Qdrant Collection 已存在且配置正确: {name}")
+                    # 检查 dense vector 是否已启用 on_disk
+                    dense_cfg = vectors_config.get("dense") if isinstance(vectors_config, dict) else None
+                    if dense_cfg and not getattr(dense_cfg, "on_disk", False):
+                        try:
+                            logger.info(f"🧠 [Memory] 迁移集合 {name} 向量到磁盘存储...")
+                            await client.update_collection(
+                                collection_name=name,
+                                vectors_config={"dense": VectorParamsDiff(on_disk=True)},
+                            )
+                            logger.info(f"🧠 [Memory] 集合 {name} 迁移完成")
+                        except Exception as me:
+                            logger.warning(f"🧠 [Memory] 迁移集合 {name} on_disk 配置失败: {me}")
+                    else:
+                        logger.debug(f"🧠 [Memory] Qdrant Collection 已存在且配置正确: {name}")
             except Exception as e:
                 logger.error(f"🧠 [Memory] 检查/重建 Collection {name} 失败: {e}")

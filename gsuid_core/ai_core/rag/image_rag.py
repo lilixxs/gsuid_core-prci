@@ -14,6 +14,7 @@ from qdrant_client.models import (
     PointStruct,
     VectorParams,
     FieldCondition,
+    VectorParamsDiff,
 )
 from qdrant_client.http.models.models import ScoredPoint
 
@@ -42,11 +43,23 @@ async def init_image_collection():
         logger.info(f"🧠 [ImageRAG] 创建新集合: {IMAGE_COLLECTION_NAME}")
         await client.create_collection(
             collection_name=IMAGE_COLLECTION_NAME,
-            vectors_config=VectorParams(size=DIMENSION, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=DIMENSION, distance=Distance.COSINE, on_disk=True),
             on_disk_payload=True,
         )
     else:
-        logger.info(f"🧠 [ImageRAG] 集合已存在: {IMAGE_COLLECTION_NAME}")
+        # 已存在的 collection：尝试迁移向量到磁盘存储
+        try:
+            col_info = await client.get_collection(collection_name=IMAGE_COLLECTION_NAME)
+            vectors_config = col_info.config.params.vectors
+            if isinstance(vectors_config, VectorParams) and not vectors_config.on_disk:
+                logger.info(f"🧠 [ImageRAG] 迁移集合 {IMAGE_COLLECTION_NAME} 向量到磁盘存储...")
+                await client.update_collection(
+                    collection_name=IMAGE_COLLECTION_NAME,
+                    vectors_config={"": VectorParamsDiff(on_disk=True)},
+                )
+                logger.info(f"🧠 [ImageRAG] 集合 {IMAGE_COLLECTION_NAME} 迁移完成")
+        except Exception as e:
+            logger.warning(f"🧠 [ImageRAG] 检查/迁移集合 on_disk 配置失败: {e}")
 
 
 def build_image_text(entity: ImageEntity) -> str:

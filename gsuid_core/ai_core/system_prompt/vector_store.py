@@ -6,6 +6,7 @@ from qdrant_client.models import (
     Distance,
     PointStruct,
     VectorParams,
+    VectorParamsDiff,
 )
 
 from gsuid_core.logger import logger
@@ -32,11 +33,23 @@ async def init_system_prompt_collection():
         logger.info(f"🧠 [SystemPrompt] 创建新集合: {SYSTEM_PROMPT_COLLECTION_NAME}")
         await client.create_collection(
             collection_name=SYSTEM_PROMPT_COLLECTION_NAME,
-            vectors_config=VectorParams(size=DIMENSION, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=DIMENSION, distance=Distance.COSINE, on_disk=True),
             on_disk_payload=True,
         )
     else:
-        logger.info(f"🧠 [SystemPrompt] 集合已存在: {SYSTEM_PROMPT_COLLECTION_NAME}")
+        # 已存在的 collection：尝试迁移向量到磁盘存储
+        try:
+            col_info = await client.get_collection(collection_name=SYSTEM_PROMPT_COLLECTION_NAME)
+            vectors_config = col_info.config.params.vectors
+            if isinstance(vectors_config, VectorParams) and not vectors_config.on_disk:
+                logger.info(f"🧠 [SystemPrompt] 迁移集合 {SYSTEM_PROMPT_COLLECTION_NAME} 向量到磁盘存储...")
+                await client.update_collection(
+                    collection_name=SYSTEM_PROMPT_COLLECTION_NAME,
+                    vectors_config={"": VectorParamsDiff(on_disk=True)},
+                )
+                logger.info(f"🧠 [SystemPrompt] 集合 {SYSTEM_PROMPT_COLLECTION_NAME} 迁移完成")
+        except Exception as e:
+            logger.warning(f"🧠 [SystemPrompt] 检查/迁移集合 on_disk 配置失败: {e}")
 
 
 def build_prompt_text(prompt: dict) -> str:
